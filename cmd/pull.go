@@ -22,36 +22,112 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"reflect"
 
+	"github.com/localizely/localizely-client-go"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-// pullCmd represents the pull command
 var pullCmd = &cobra.Command{
 	Use:   "pull",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Pull localization files from Localizely",
+	PreRun: func(cmd *cobra.Command, args []string) {
+		// Bind flags only if the command is executed (fixes issue with global viper and the same flag names in multiple cobra commands)
+		// More info: https://github.com/spf13/viper/issues/233#issuecomment-386791444
+		viper.BindPFlag("api_token", cmd.Flags().Lookup("api-token"))
+		viper.BindPFlag("project_id", cmd.Flags().Lookup("project-id"))
+		viper.BindPFlag("branch", cmd.Flags().Lookup("branch"))
+		viper.BindPFlag("file_type", cmd.Flags().Lookup("file-type"))
+		viper.BindPFlag("download.files", cmd.Flags().Lookup("files"))
+		viper.BindPFlag("download.params.java_properties_encoding", cmd.Flags().Lookup("java-properties-encoding"))
+		viper.BindPFlag("download.params.export_empty_as", cmd.Flags().Lookup("export-empty-as"))
+		viper.BindPFlag("download.params.include_tags", cmd.Flags().Lookup("include-tags"))
+		viper.BindPFlag("download.params.exclude_tags", cmd.Flags().Lookup("exclude-tags"))
+	},
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("pull called")
+		apiToken := viper.GetString("api_token")
+		projectId := viper.GetString("project_id")
+		branch := viper.GetString("branch")
+		fileType := viper.GetString("file_type")
+		javaPropertiesEncoding := viper.GetString("download.params.java_properties_encoding")
+		files := viper.Get("download.files")
+		exportEmptyAs := viper.GetString("download.params.export_empty_as")
+		includeTags := viper.GetStringSlice("download.params.include_tags")
+		excludeTags := viper.GetStringSlice("download.params.exclude_tags")
+
+		localizationFiles := []LocalizationFile{}
+		if reflect.TypeOf(files).String() == "[]interface {}" {
+			convertFilesConfigToLocalizationFiles(files.([]interface{}), &localizationFiles)
+		} else if reflect.TypeOf(files).String() == "map[string]interface {}" {
+			convertFilesFlagToLocalizationFiles(files.(map[string]interface{}), &localizationFiles)
+		}
+
+		err := validateApiToken(apiToken)
+		checkError(err)
+
+		err = validateProjectId(projectId)
+		checkError(err)
+
+		err = validateFileType(fileType)
+		checkError(err)
+
+		err = validateFiles(localizationFiles, "pull")
+		checkError(err)
+
+		cfg := localizely.NewConfiguration()
+		apiClient := localizely.NewAPIClient(cfg)
+		ctx := context.WithValue(context.Background(), localizely.ContextAPIKeys, map[string]localizely.APIKey{"API auth": {Key: apiToken}})
+
+		for _, localizationFile := range localizationFiles {
+			var err error
+
+			resp, err := apiClient.DownloadAPIApi.GetLocalizationFile(ctx, projectId).Branch(branch).LangCodes(localizationFile.localeCode).Type_(fileType).JavaPropertiesEncoding(javaPropertiesEncoding).ExportEmptyAs(exportEmptyAs).IncludeTags(includeTags).ExcludeTags(excludeTags).Execute()
+			if err != nil {
+				b, _ := io.ReadAll(resp.Body)
+				jsonErr := string(b)
+				fmt.Fprintf(os.Stderr, "Failed to pull localization files from Localizely\nError: %s\n%s\n", err, jsonErr)
+				os.Exit(1)
+			}
+
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to read localization files\nError: %v\n", err)
+				os.Exit(1)
+			}
+
+			err = os.MkdirAll(filepath.Dir(localizationFile.file), 0666)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to create directory '%s'\nError: %v\n", filepath.Dir(localizationFile.file), err)
+				os.Exit(1)
+			}
+
+			err = os.WriteFile(filepath.Clean(localizationFile.file), b, 0666)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to save localization file\nError: %v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		fmt.Fprintln(os.Stdout, "Successfully pulled localization files from Localizely")
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(pullCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// pullCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// pullCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	pullCmd.Flags().String("api-token", "", "API token\nYour API token from https://app.localizely.com/account")
+	pullCmd.Flags().String("project-id", "", "Project ID\nYour project ID from https://app.localizely.com/projects")
+	pullCmd.Flags().String("branch", "", "Branch name\nBranch in Localizely project to sync files with")
+	pullCmd.Flags().StringToString("files", map[string]string{}, "List of localization files to pull from Localizely\nExample:\n\t--files \"file[0]=lang/en_US.json\",\"locale_code[0]=en-US\"")
+	pullCmd.Flags().String("file-type", "", "File type"+formatOptions(fileTypesOpt, 2))
+	pullCmd.Flags().String("java-properties-encoding", "", "Character encoding for java_properties file type (default \"latin_1\")"+formatOptions(javaEncodingOpt, 1))
+	pullCmd.Flags().String("export-empty-as", "", "Export empty translations as (default \"empty\")"+formatOptions(exportEmptyAsOpt, 1))
+	pullCmd.Flags().StringSlice("include-tags", []string{}, "List of tags to include in pull\nIf not set, all string keys will be considered for download")
+	pullCmd.Flags().StringSlice("exclude-tags", []string{}, "List of tags to exclude from pull\nIf not set, all string keys will be considered for download")
 }
