@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"reflect"
 
+	"github.com/fatih/color"
 	"github.com/localizely/localizely-client-go"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -79,13 +80,13 @@ var pushCmd = &cobra.Command{
 
 		filesMap := make(map[string]*os.File)
 		for _, v := range localizationFiles {
-			file, err := os.Open(filepath.Clean(v.file))
+			file, err := os.Open(filepath.Clean(v.File))
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to open file '%s'\nError: %v\n", filepath.Clean(v.file), err)
+				fmt.Fprintf(os.Stderr, "Failed to open file '%s'\nError: %v\n", filepath.Clean(v.File), err)
 				os.Exit(1)
 			}
 
-			filesMap[v.localeCode] = file
+			filesMap[v.LocaleCode] = file
 		}
 
 		cfg := localizely.NewConfiguration()
@@ -94,18 +95,18 @@ var pushCmd = &cobra.Command{
 		ctx := context.WithValue(context.Background(), localizely.ContextAPIKeys, map[string]localizely.APIKey{"API auth": {Key: apiToken}})
 
 		for _, localizationFile := range localizationFiles {
-			file := filesMap[localizationFile.localeCode]
+			file := filesMap[localizationFile.LocaleCode]
 
-			resp, err := apiClient.UploadAPIApi.ImportLocalizationFile(ctx, projectId).Branch(branch).LangCode(localizationFile.localeCode).File(file).Overwrite(overwrite).Reviewed(reviewed).TagAdded(tagAdded).TagUpdated(tagUpdated).TagRemoved(tagRemoved).Execute()
+			resp, err := apiClient.UploadAPIApi.ImportLocalizationFile(ctx, projectId).Branch(branch).LangCode(localizationFile.LocaleCode).File(file).Overwrite(overwrite).Reviewed(reviewed).TagAdded(tagAdded).TagUpdated(tagUpdated).TagRemoved(tagRemoved).Execute()
 			if err != nil {
 				b, _ := io.ReadAll(resp.Body)
 				jsonErr := string(b)
-				fmt.Fprintf(os.Stderr, "Failed to push localization file %s to Localizely\nError: %s\n%s\n", file.Name(), err, jsonErr)
+				fmt.Fprintf(os.Stderr, "Failed to push localization file '%s' to Localizely\nError: %v\n%s\n", file.Name(), err, jsonErr)
 				os.Exit(1)
 			}
 		}
 
-		fmt.Fprintln(os.Stdout, "Successfully pushed localization files to Localizely")
+		color.Green("Successfully pushed localization files to Localizely")
 	},
 }
 

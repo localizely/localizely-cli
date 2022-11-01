@@ -36,12 +36,30 @@ import (
 
 const Version = "1.0.0"
 
+const LocalizelyDir = ".localizely"
+
+const LocalizelyYamlFile = "localizely.yml"
+
+const CredentialsYamlFile = "credentials.yaml"
+
 type LocalizationFile struct {
-	file       string
-	localeCode string
+	File       string
+	LocaleCode string
 }
 type CredentialsYaml struct {
 	ApiToken string `yaml:"api_token"`
+}
+
+type BaseLocalizelyYaml struct {
+	ProjectId     string
+	FileType      string
+	UploadFiles   []LocalizationFile
+	DownloadFiles []LocalizationFile
+}
+
+var modeOpt = []string{
+	"interactive",
+	"template",
 }
 
 var fileTypesOpt = []string{
@@ -71,21 +89,6 @@ var exportEmptyAsOpt = []string{
 	"skip",
 }
 
-func formatOptions(options []string, columns int) string {
-	formatted := ""
-
-	for k, v := range options {
-		if k%columns == 0 {
-			formatted += "\n"
-		}
-		formatted += "- "
-		formatted += v
-		formatted += strings.Repeat(" ", 20-len(v))
-	}
-
-	return formatted
-}
-
 var rootCmd = &cobra.Command{
 	Use:     "localizely-cli",
 	Short:   "Localizely is a translation management system (TMS) that helps teams to automate, manage and translate content.",
@@ -111,7 +114,7 @@ func initConfig() {
 	apiToken, err := getApiToken()
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			fmt.Fprintf(os.Stderr, "Failed to read api token from the '%s'\n%v\n", filepath.Join("~", ".localizely", "credentials.yaml"), err)
+			fmt.Fprintf(os.Stderr, "Failed to read api token from the '%s'\nError: %v\n", formatCredentialsYamlFilePath(), err)
 		}
 	}
 
@@ -123,8 +126,33 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		fmt.Fprintf(os.Stderr, "Using config file: '%s'\n", viper.ConfigFileUsed())
 	}
+}
+
+func formatOptions(options []string, columns int, mode string) string {
+	formatted := ""
+
+	for k, v := range options {
+		if k != 0 && k%columns == 0 {
+			formatted += "\n"
+		}
+
+		if mode == "ordered" {
+			formatted += fmt.Sprintf("%d. ", k+1)
+		} else {
+			formatted += "- "
+		}
+		formatted += v
+		formatted += strings.Repeat(" ", 20-len(v))
+	}
+
+	return formatted
+}
+
+func formatCredentialsYamlFilePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, LocalizelyDir, CredentialsYamlFile)
 }
 
 func getApiToken() (string, error) {
@@ -135,7 +163,7 @@ func getApiToken() (string, error) {
 		return "", err
 	}
 
-	path := filepath.Join(home, ".localizely", "credentials.yaml")
+	path := filepath.Join(home, LocalizelyDir, CredentialsYamlFile)
 
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -154,8 +182,8 @@ func getApiToken() (string, error) {
 func convertFilesConfigToLocalizationFiles(files []interface{}, localizationFiles *[]LocalizationFile) {
 	for _, v := range files {
 		*localizationFiles = append(*localizationFiles, LocalizationFile{
-			file:       (v.(map[string]interface{})["file"]).(string),
-			localeCode: (v.(map[string]interface{})["locale_code"]).(string),
+			File:       (v.(map[string]interface{})["file"]).(string),
+			LocaleCode: (v.(map[string]interface{})["locale_code"]).(string),
 		})
 	}
 }
@@ -193,8 +221,8 @@ func convertFilesFlagToLocalizationFiles(files map[string]interface{}, localizat
 	for _, v := range params {
 		if len(v) == 2 {
 			*localizationFiles = append(*localizationFiles, LocalizationFile{
-				file:       v["file"],
-				localeCode: v["locale_code"],
+				File:       v["file"],
+				LocaleCode: v["locale_code"],
 			})
 		}
 	}
@@ -202,13 +230,7 @@ func convertFilesFlagToLocalizationFiles(files map[string]interface{}, localizat
 
 func validateApiToken(apiToken string) error {
 	if apiToken == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			home = "~"
-		}
-
-		credentialsFilePath := filepath.Join(home, ".localizely", "credentials.yaml")
-		msg := fmt.Sprintf("The API token was not provided.\n\nPlease set it using one of the available options:\n- %s file\n- LOCALIZELY_API_TOKEN environment variable\n- api-token flag\n\nTo create a new API token, please visit https://app.localizely.com/account.\n\n", credentialsFilePath)
+		msg := fmt.Sprintf("The API token was not provided.\n\nPlease set it using one of the available options:\n- %s file\n- LOCALIZELY_API_TOKEN environment variable\n- api-token flag\n\nTo create a new API token, please visit https://app.localizely.com/account.\n\n", formatCredentialsYamlFilePath())
 		return errors.New(msg)
 	}
 
@@ -226,7 +248,7 @@ func validateProjectId(projectId string) error {
 
 func validateFileType(fileType string) error {
 	if fileType == "" {
-		msg := fmt.Sprintf("The file type was not provided.\n\nPlease set it using one of the available options:\n- localizely.yml file\n- LOCALIZELY_FILE_TYPE environment variable\n- file-type flag\n\nAvailable file types: %s\n\n", formatOptions(fileTypesOpt, 2))
+		msg := fmt.Sprintf("The file type was not provided.\n\nPlease set it using one of the available options:\n- localizely.yml file\n- LOCALIZELY_FILE_TYPE environment variable\n- file-type flag\n\nAvailable file types:\n%s\n\n", formatOptions(fileTypesOpt, 2, "unordered"))
 		return errors.New(msg)
 	}
 
@@ -236,7 +258,7 @@ func validateFileType(fileType string) error {
 		}
 	}
 
-	msg := fmt.Sprintf("The file type has invalid value.\n\nAvailable file types: %s\n\n", formatOptions(fileTypesOpt, 2))
+	msg := fmt.Sprintf("The file type has invalid value.\n\nAvailable file types:\n%s\n\n", formatOptions(fileTypesOpt, 2, "unordered"))
 	return errors.New(msg)
 }
 
@@ -247,6 +269,21 @@ func validateFiles(files []LocalizationFile, command string) error {
 	}
 
 	return nil
+}
+
+func validateMode(mode string) error {
+	if mode == "" {
+		return nil
+	}
+
+	for _, opt := range modeOpt {
+		if opt == mode {
+			return nil
+		}
+	}
+
+	msg := fmt.Sprintf("The mode has invalid value.\n\nAvailable mode options:\n%s\n\n", formatOptions(modeOpt, 1, "unordered"))
+	return errors.New(msg)
 }
 
 func checkError(err error) {
