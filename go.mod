@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/fatih/color v1.13.0
-	github.com/localizely/localizely-client-go v0.0.0-00010101000000-000000000000
+	github.com/localizely/localizely-client-go v1.0.0
 	github.com/rhysd/go-github-selfupdate v1.2.3
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.13.0
@@ -43,5 +43,3 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
-
-replace github.com/localizely/localizely-client-go => ../localizely-client-go
