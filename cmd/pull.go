@@ -81,24 +81,47 @@ var pullCmd = &cobra.Command{
 		err = validateFiles(localizationFiles, "pull")
 		checkError(err)
 
+		err = validateExportEmptyAs(exportEmptyAs)
+		checkError(err)
+
+		err = validateJavaPropertiesEncoding(javaPropertiesEncoding)
+		checkError(err)
+
 		cfg := localizely.NewConfiguration()
 		apiClient := localizely.NewAPIClient(cfg)
 		ctx := context.WithValue(context.Background(), localizely.ContextAPIKeys, map[string]localizely.APIKey{"API auth": {Key: apiToken}})
 
 		for _, localizationFile := range localizationFiles {
-			var err error
+			req := apiClient.DownloadAPIApi.GetLocalizationFile(ctx, projectId)
+			req = req.LangCodes(localizationFile.LocaleCode)
+			req = req.Type_(fileType)
+			if branch != "" {
+				req = req.Branch(branch)
+			}
+			if len(includeTags) > 0 {
+				req = req.IncludeTags(includeTags)
+			}
+			if len(excludeTags) > 0 {
+				req = req.ExcludeTags(excludeTags)
+			}
+			if exportEmptyAs != "" {
+				req = req.ExportEmptyAs(exportEmptyAs)
+			}
+			if javaPropertiesEncoding != "" {
+				req = req.JavaPropertiesEncoding(javaPropertiesEncoding)
+			}
 
-			resp, err := apiClient.DownloadAPIApi.GetLocalizationFile(ctx, projectId).Branch(branch).LangCodes(localizationFile.LocaleCode).Type_(fileType).JavaPropertiesEncoding(javaPropertiesEncoding).ExportEmptyAs(exportEmptyAs).IncludeTags(includeTags).ExcludeTags(excludeTags).Execute()
+			resp, err := req.Execute()
 			if err != nil {
 				b, _ := io.ReadAll(resp.Body)
 				jsonErr := string(b)
-				fmt.Fprintf(os.Stderr, "Failed to pull localization files from Localizely\nError: %v\n%s\n", err, jsonErr)
+				fmt.Fprintf(os.Stderr, "Failed to pull data from Localizely\nError: %v\n%s\n", err, jsonErr)
 				os.Exit(1)
 			}
 
 			b, err := io.ReadAll(resp.Body)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to read localization files\nError: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Failed to read response from the server\nError: %v\n", err)
 				os.Exit(1)
 			}
 
@@ -110,12 +133,12 @@ var pullCmd = &cobra.Command{
 
 			err = os.WriteFile(filepath.Clean(localizationFile.File), b, 0666)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to save localization file\nError: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Failed to save localization file '%s'\nError: %v\n", filepath.Clean(localizationFile.File), err)
 				os.Exit(1)
 			}
 		}
 
-		color.Green("Successfully pulled localization files from Localizely")
+		color.Green("Successfully pulled data from Localizely")
 	},
 }
 
@@ -127,7 +150,7 @@ func init() {
 	pullCmd.Flags().String("branch", "", "Branch name\nBranch in Localizely project to sync files with")
 	pullCmd.Flags().StringToString("files", map[string]string{}, "List of localization files to pull from Localizely\nExample:\n\t--files \"file[0]=lang/en_US.json\",\"locale_code[0]=en-US\"")
 	pullCmd.Flags().String("file-type", "", "File type\n"+formatOptions(fileTypesOpt, 2, "unordered"))
-	pullCmd.Flags().String("java-properties-encoding", "", "Character encoding for java_properties file type (default \"latin_1\")\n"+formatOptions(javaEncodingOpt, 1, "unordered"))
+	pullCmd.Flags().String("java-properties-encoding", "", "Character encoding for java_properties file type (default \"latin_1\")\n"+formatOptions(javaPropertiesEncodingOpt, 1, "unordered"))
 	pullCmd.Flags().String("export-empty-as", "", "Export empty translations as (default \"empty\")\n"+formatOptions(exportEmptyAsOpt, 1, "unordered"))
 	pullCmd.Flags().StringSlice("include-tags", []string{}, "List of tags to include in pull\nIf not set, all string keys will be considered for download")
 	pullCmd.Flags().StringSlice("exclude-tags", []string{}, "List of tags to exclude from pull\nIf not set, all string keys will be considered for download")

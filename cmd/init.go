@@ -48,7 +48,7 @@ const LocalizelyLogo = `
 `
 
 const BaseLocalizelyYamlTemplate = `
-# More details: https://localizely.com/configuration-file/
+# For more configuration details, see https://localizely.com/configuration-file/
 config_version: 1.0 # Required. Only 1.0 available
 project_id: {{ .ProjectId }} # Required. Your project ID from: https://app.localizely.com/projects
 file_type: {{ .FileType }} # Required. Available values : android_xml, ios_strings, ios_stringsdict, java_properties, rails_yaml, angular_xlf, flutter_arb, dotnet_resx, po, pot, json, csv, xlsx
@@ -159,7 +159,7 @@ func scanFileType(fileType *string) {
 }
 
 func scanFiles(localizationFiles *[]LocalizationFile, section string) {
-	localeCodeRegexp := regexp.MustCompile("[a-z]{2}(-[A-Z][a-z]{3})?(-[A-Z]{2})?")
+	localeCodeRegexp := regexp.MustCompile("^[a-z]{2}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$")
 
 	var action string
 	if section == "pull" {
@@ -182,8 +182,8 @@ func scanFiles(localizationFiles *[]LocalizationFile, section string) {
 				os.Exit(1)
 			}
 
+			localeCode = strings.TrimSpace(localeCode)
 			if match := localeCodeRegexp.MatchString(localeCode); match == true {
-				localeCode = strings.TrimSpace(localeCode)
 				break
 			}
 
@@ -219,7 +219,9 @@ func scanFiles(localizationFiles *[]LocalizationFile, section string) {
 				os.Exit(1)
 			}
 
-			if strings.ToLower(strings.TrimSpace(next)) == "n" || strings.ToLower(strings.TrimSpace(next)) == "y" {
+			next = strings.ToLower(strings.TrimSpace(next))
+
+			if next == "n" || next == "y" {
 				break
 			}
 
@@ -228,7 +230,7 @@ func scanFiles(localizationFiles *[]LocalizationFile, section string) {
 			color.Unset()
 		}
 
-		if strings.ToLower(strings.TrimSpace(next)) == "n" {
+		if next == "n" {
 			break
 		}
 	}
@@ -257,13 +259,13 @@ func createCredentialsYamlFile(apiToken string) error {
 
 	path := filepath.Join(home, LocalizelyDir, CredentialsYamlFile)
 
-	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		fmt.Fprintf(os.Stderr, "\nOverwriting the content of the '%s' file\n", LocalizelyYamlFile)
-	}
-
 	err = os.MkdirAll(filepath.Dir(path), 0666)
 	if err != nil {
 		return err
+	}
+
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		fmt.Fprintf(os.Stderr, "\nOverwriting the content of the '%s' file\n", CredentialsYamlFile)
 	}
 
 	return os.WriteFile(path, bytes, 0666)
@@ -294,7 +296,7 @@ func checkIsConfigured() {
 }
 
 func initInteractive() {
-	fmt.Printf("\nRunning init command in interactive mode\n\n")
+	fmt.Printf("\nRunning init command in interactive mode\n")
 	var err error
 
 	var apiToken string
@@ -330,7 +332,7 @@ func initInteractive() {
 }
 
 func initTemplate() {
-	data := []byte(LocalizelyYamlTemplate)
+	data := []byte(strings.TrimSpace(LocalizelyYamlTemplate))
 
 	err := os.WriteFile(LocalizelyYamlFile, data, 0666)
 	if err != nil {
@@ -366,5 +368,5 @@ var initCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(initCmd)
 
-	initCmd.Flags().String("mode", "", "Configuration mode (default \"interactive\")\n- interactive\n- template\n")
+	initCmd.Flags().String("mode", "", "Configuration mode (default \"interactive\")\n"+formatOptions(modeOpt, 1, "unordered"))
 }

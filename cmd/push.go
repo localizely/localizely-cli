@@ -91,13 +91,30 @@ var pushCmd = &cobra.Command{
 
 		cfg := localizely.NewConfiguration()
 		apiClient := localizely.NewAPIClient(cfg)
-
 		ctx := context.WithValue(context.Background(), localizely.ContextAPIKeys, map[string]localizely.APIKey{"API auth": {Key: apiToken}})
 
 		for _, localizationFile := range localizationFiles {
 			file := filesMap[localizationFile.LocaleCode]
 
-			resp, err := apiClient.UploadAPIApi.ImportLocalizationFile(ctx, projectId).Branch(branch).LangCode(localizationFile.LocaleCode).File(file).Overwrite(overwrite).Reviewed(reviewed).TagAdded(tagAdded).TagUpdated(tagUpdated).TagRemoved(tagRemoved).Execute()
+			req := apiClient.UploadAPIApi.ImportLocalizationFile(ctx, projectId)
+			req = req.LangCode(localizationFile.LocaleCode)
+			req = req.File(file)
+			req = req.Overwrite(overwrite)
+			req = req.Reviewed(reviewed)
+			if branch != "" {
+				req = req.Branch(branch)
+			}
+			if len(tagAdded) > 0 {
+				req = req.TagAdded(tagAdded)
+			}
+			if len(tagUpdated) > 0 {
+				req = req.TagUpdated(tagUpdated)
+			}
+			if len(tagRemoved) > 0 {
+				req = req.TagRemoved(tagRemoved)
+			}
+
+			resp, err := req.Execute()
 			if err != nil {
 				b, _ := io.ReadAll(resp.Body)
 				jsonErr := string(b)
@@ -106,7 +123,7 @@ var pushCmd = &cobra.Command{
 			}
 		}
 
-		color.Green("Successfully pushed localization files to Localizely")
+		color.Green("Successfully pushed data to Localizely")
 	},
 }
 

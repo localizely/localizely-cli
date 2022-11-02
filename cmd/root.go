@@ -78,7 +78,7 @@ var fileTypesOpt = []string{
 	"xlsx",
 }
 
-var javaEncodingOpt = []string{
+var javaPropertiesEncodingOpt = []string{
 	"utf_8",
 	"latin_1",
 }
@@ -91,7 +91,7 @@ var exportEmptyAsOpt = []string{
 
 var rootCmd = &cobra.Command{
 	Use:     "localizely-cli",
-	Short:   "Localizely is a translation management system (TMS) that helps teams to automate, manage and translate content.",
+	Short:   "Localizely is a translation management platform that helps you translate texts in your app for targeting multilingual market.",
 	Version: Version,
 }
 
@@ -239,7 +239,7 @@ func validateApiToken(apiToken string) error {
 
 func validateProjectId(projectId string) error {
 	if projectId == "" {
-		msg := fmt.Sprintf("The project ID was not provided.\n\nPlease set it using one of the available options:\n- localizely.yml file\n- LOCALIZELY_PROJECT_ID environment variable\n- project-id flag\n\nTo find your project ID, please visit https://app.localizely.com/projects\n\n")
+		msg := fmt.Sprintf("The project ID was not provided.\n\nPlease set it using one of the available options:\n- %s file\n- LOCALIZELY_PROJECT_ID environment variable\n- project-id flag\n\nTo find your project ID, please visit https://app.localizely.com/projects\n\n", LocalizelyYamlFile)
 		return errors.New(msg)
 	}
 
@@ -248,7 +248,7 @@ func validateProjectId(projectId string) error {
 
 func validateFileType(fileType string) error {
 	if fileType == "" {
-		msg := fmt.Sprintf("The file type was not provided.\n\nPlease set it using one of the available options:\n- localizely.yml file\n- LOCALIZELY_FILE_TYPE environment variable\n- file-type flag\n\nAvailable file types:\n%s\n\n", formatOptions(fileTypesOpt, 2, "unordered"))
+		msg := fmt.Sprintf("The file type was not provided.\n\nPlease set it using one of the available options:\n- %s file\n- LOCALIZELY_FILE_TYPE environment variable\n- file-type flag\n\nAvailable file types:\n%s\n\n", LocalizelyYamlFile, formatOptions(fileTypesOpt, 2, "unordered"))
 		return errors.New(msg)
 	}
 
@@ -264,11 +264,41 @@ func validateFileType(fileType string) error {
 
 func validateFiles(files []LocalizationFile, command string) error {
 	if len(files) == 0 {
-		msg := fmt.Sprintf("The list of localization files for %s was not provided.\n\nPlease set it using of of the available options:\n- localizely.yml\n- files flag\n\n", command)
+		msg := fmt.Sprintf("The list of localization files for %s was not provided.\n\nPlease set it using one of the available options:\n- %s file\n- files flag\n\n", command, LocalizelyYamlFile)
 		return errors.New(msg)
 	}
 
 	return nil
+}
+
+func validateExportEmptyAs(exportEmptyAs string) error {
+	if exportEmptyAs == "" {
+		return nil
+	}
+
+	for _, opt := range exportEmptyAsOpt {
+		if opt == exportEmptyAs {
+			return nil
+		}
+	}
+
+	msg := fmt.Sprintf("The export-empty-as has invalid value.\n\nAvailable options:\n%s\n\n", formatOptions(exportEmptyAsOpt, 1, "unordered"))
+	return errors.New(msg)
+}
+
+func validateJavaPropertiesEncoding(javaPropertiesEncoding string) error {
+	if javaPropertiesEncoding == "" {
+		return nil
+	}
+
+	for _, opt := range javaPropertiesEncodingOpt {
+		if opt == javaPropertiesEncoding {
+			return nil
+		}
+	}
+
+	msg := fmt.Sprintf("The java properties encoding has invalid value.\n\nAvailable options:\n%s\n\n", formatOptions(javaPropertiesEncodingOpt, 1, "unordered"))
+	return errors.New(msg)
 }
 
 func validateMode(mode string) error {
