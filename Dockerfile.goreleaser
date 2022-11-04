@@ -1,0 +1,3 @@
+FROM scratch
+COPY localizely-cli /bin/localizely-cli
+ENTRYPOINT ["/bin/localizely-cli"]

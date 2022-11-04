@@ -32,6 +32,13 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+dockers:
+  - goos: linux
+    goarch: amd64
+    image_templates:
+      - "localizely/localizely-cli:latest"
+      - "localizely/localizely-cli:{{ .Tag }}"
+    dockerfile: Dockerfile.goreleaser
 release:
   github:
     owner: localizely
