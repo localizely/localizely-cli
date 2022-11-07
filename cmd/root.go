@@ -230,7 +230,7 @@ func convertFilesFlagToLocalizationFiles(files map[string]interface{}, localizat
 
 func validateApiToken(apiToken string) error {
 	if apiToken == "" {
-		msg := fmt.Sprintf("The API token was not provided.\n\nPlease set it using one of the available options:\n- %s file\n- LOCALIZELY_API_TOKEN environment variable\n- api-token flag\n\nTo create a new API token, please visit https://app.localizely.com/account.\n\n", formatCredentialsYamlFilePath())
+		msg := fmt.Sprintf("The API token was not provided.\n\nPlease set it using one of the available options:\n- %s file\n- LOCALIZELY_API_TOKEN environment variable\n- api-token flag\n\nTo create a new API token, please visit https://app.localizely.com/account.\n\nUse \"localizely-cli [command] --help\" for more information about a command.\n\n", formatCredentialsYamlFilePath())
 		return errors.New(msg)
 	}
 
@@ -239,7 +239,7 @@ func validateApiToken(apiToken string) error {
 
 func validateProjectId(projectId string) error {
 	if projectId == "" {
-		msg := fmt.Sprintf("The project ID was not provided.\n\nPlease set it using one of the available options:\n- %s file\n- LOCALIZELY_PROJECT_ID environment variable\n- project-id flag\n\nTo find your project ID, please visit https://app.localizely.com/projects\n\n", LocalizelyYamlFile)
+		msg := fmt.Sprintf("The project ID was not provided.\n\nPlease set it using one of the available options:\n- %s file (Learn more here https://localizely.com/configuration-file/)\n- LOCALIZELY_PROJECT_ID environment variable\n- project-id flag\n\nTo find your project ID, please visit https://app.localizely.com/projects\n\nUse \"localizely-cli [command] --help\" for more information about a command.\n\n", LocalizelyYamlFile)
 		return errors.New(msg)
 	}
 
@@ -248,7 +248,7 @@ func validateProjectId(projectId string) error {
 
 func validateFileType(fileType string) error {
 	if fileType == "" {
-		msg := fmt.Sprintf("The file type was not provided.\n\nPlease set it using one of the available options:\n- %s file\n- LOCALIZELY_FILE_TYPE environment variable\n- file-type flag\n\nAvailable file types:\n%s\n\n", LocalizelyYamlFile, formatOptions(fileTypesOpt, 2, "unordered"))
+		msg := fmt.Sprintf("The file type was not provided.\n\nPlease set it using one of the available options:\n- %s file (Learn more here https://localizely.com/configuration-file/)\n- LOCALIZELY_FILE_TYPE environment variable\n- file-type flag\n\nAvailable file types:\n%s\n\nUse \"localizely-cli [command] --help\" for more information about a command.\n\n", LocalizelyYamlFile, formatOptions(fileTypesOpt, 2, "unordered"))
 		return errors.New(msg)
 	}
 
@@ -258,13 +258,13 @@ func validateFileType(fileType string) error {
 		}
 	}
 
-	msg := fmt.Sprintf("The file type has invalid value.\n\nAvailable file types:\n%s\n\n", formatOptions(fileTypesOpt, 2, "unordered"))
+	msg := fmt.Sprintf("The file type has invalid value.\n\nAvailable file types:\n%s\n\nUse \"localizely-cli [command] --help\" for more information about a command.\n\n", formatOptions(fileTypesOpt, 2, "unordered"))
 	return errors.New(msg)
 }
 
 func validateFiles(files []LocalizationFile, command string) error {
 	if len(files) == 0 {
-		msg := fmt.Sprintf("The list of localization files for %s was not provided.\n\nPlease set it using one of the available options:\n- %s file\n- files flag\n\n", command, LocalizelyYamlFile)
+		msg := fmt.Sprintf("The list of localization files for %s was not provided.\n\nPlease set it using one of the available options:\n- %s file (Learn more here https://localizely.com/configuration-file/)\n- files flag\n\nUse \"localizely-cli [command] --help\" for more information about a command.\n\n", command, LocalizelyYamlFile)
 		return errors.New(msg)
 	}
 
@@ -282,7 +282,7 @@ func validateExportEmptyAs(exportEmptyAs string) error {
 		}
 	}
 
-	msg := fmt.Sprintf("The export-empty-as has invalid value.\n\nAvailable options:\n%s\n\n", formatOptions(exportEmptyAsOpt, 1, "unordered"))
+	msg := fmt.Sprintf("The export-empty-as has invalid value.\n\nAvailable options:\n%s\n\nUse \"localizely-cli [command] --help\" for more information about a command.\n\n", formatOptions(exportEmptyAsOpt, 1, "unordered"))
 	return errors.New(msg)
 }
 
@@ -297,7 +297,7 @@ func validateJavaPropertiesEncoding(javaPropertiesEncoding string) error {
 		}
 	}
 
-	msg := fmt.Sprintf("The java properties encoding has invalid value.\n\nAvailable options:\n%s\n\n", formatOptions(javaPropertiesEncodingOpt, 1, "unordered"))
+	msg := fmt.Sprintf("The java properties encoding has invalid value.\n\nAvailable options:\n%s\n\nUse \"localizely-cli [command] --help\" for more information about a command.\n\n", formatOptions(javaPropertiesEncodingOpt, 1, "unordered"))
 	return errors.New(msg)
 }
 
@@ -312,7 +312,7 @@ func validateMode(mode string) error {
 		}
 	}
 
-	msg := fmt.Sprintf("The mode has invalid value.\n\nAvailable mode options:\n%s\n\n", formatOptions(modeOpt, 1, "unordered"))
+	msg := fmt.Sprintf("The mode has invalid value.\n\nAvailable mode options:\n%s\n\nUse \"localizely-cli [command] --help\" for more information about a command.\n\n", formatOptions(modeOpt, 1, "unordered"))
 	return errors.New(msg)
 }
 
