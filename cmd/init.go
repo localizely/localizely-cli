@@ -97,7 +97,7 @@ download: # Required.
 
 func scanApiToken(apiToken *string) {
 	for {
-		err := scan("\nEnter your API token (https://app.localizely.com/account):", apiToken)
+		err := scan("\nEnter your API token (from https://app.localizely.com/account):", apiToken)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to read api token\nError: %v\n", err)
 			os.Exit(1)
@@ -117,7 +117,7 @@ func scanApiToken(apiToken *string) {
 
 func scanProjectId(projectId *string) {
 	for {
-		err := scan("\nEnter your project ID (https://app.localizely.com/projects):", projectId)
+		err := scan("\nEnter your project ID (from https://app.localizely.com/projects):", projectId)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to read project ID\nError: %v\n", err)
 			os.Exit(1)
@@ -213,7 +213,7 @@ func scanFiles(localizationFiles *[]LocalizationFile, section string) {
 		*localizationFiles = append(*localizationFiles, LocalizationFile{File: file, LocaleCode: localeCode})
 
 		for {
-			err := scan("Add another localization file? (y/n)", &next)
+			err := scan(fmt.Sprintf("Add another localization file for %s? (y/n)", section), &next)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to read answer\nError: %v\n", err)
 				os.Exit(1)
@@ -346,6 +346,7 @@ func initTemplate() {
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Configure your Localizely client",
+	Long:  "Configure your Localizely client\n(Learn more here https://localizely.com/configuration-file/)\n",
 	Run: func(cmd *cobra.Command, args []string) {
 		mode, err := cmd.Flags().GetString("mode")
 		checkError(err)

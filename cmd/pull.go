@@ -36,8 +36,9 @@ import (
 )
 
 var pullCmd = &cobra.Command{
-	Use:   "pull",
-	Short: "Pull localization files from Localizely",
+	Use:     "pull",
+	Short:   "Pull localization files from Localizely",
+	Example: "  localizely-cli pull \\\n    --api-token 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \\\n    --project-id 01234567-abcd-abcd-abcd-0123456789ab \\\n    --file-type json \\\n    --files \"file[0]=lang/en.json\",\"locale_code[0]=en\",\"file[1]=lang/de_DE.json\",\"locale_code[1]=de-DE\" \\\n    --export-empty-as empty \\\n    --include-tags new,updated \\\n    --exclude-tags removed",
 	PreRun: func(cmd *cobra.Command, args []string) {
 		// Bind flags only if the command is executed (fixes issue with global viper and the same flag names in multiple cobra commands)
 		// More info: https://github.com/spf13/viper/issues/233#issuecomment-386791444
