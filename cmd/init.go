@@ -259,7 +259,7 @@ func createCredentialsYamlFile(apiToken string) error {
 
 	path := filepath.Join(home, LocalizelyDir, CredentialsYamlFile)
 
-	err = os.MkdirAll(filepath.Dir(path), 0666)
+	err = os.MkdirAll(filepath.Dir(path), 0777)
 	if err != nil {
 		return err
 	}

@@ -126,7 +126,7 @@ var pullCmd = &cobra.Command{
 				os.Exit(1)
 			}
 
-			err = os.MkdirAll(filepath.Dir(localizationFile.File), 0666)
+			err = os.MkdirAll(filepath.Dir(localizationFile.File), 0777)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to create directory '%s'\nError: %v\n", filepath.Dir(localizationFile.File), err)
 				os.Exit(1)
