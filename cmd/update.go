@@ -22,6 +22,7 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -32,14 +33,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func scanConfirmUpdate(confirm *bool) {
+func scanConfirmUpdate(confirm *bool) error {
 	var confirmStr string
 
 	for {
 		err := scan("Do you want to proceed with the update? (y/n)", &confirmStr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to read answer\nError: %v\n", err)
-			os.Exit(1)
+			return errors.New(fmt.Sprintf("Failed to read answer\nError: %v\n", err))
 		}
 
 		confirmStr = strings.ToLower(strings.TrimSpace(confirmStr))
@@ -54,6 +54,8 @@ func scanConfirmUpdate(confirm *bool) {
 	}
 
 	*confirm = confirmStr == "y"
+
+	return nil
 }
 
 var updateCmd = &cobra.Command{
@@ -63,39 +65,41 @@ var updateCmd = &cobra.Command{
 		currVersion := semver.MustParse(Version)
 
 		latest, found, err := selfupdate.DetectLatest("localizely/localizely-cli")
-		if err != nil || !found {
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to detect the latest release\nError: %v\n", err)
 			os.Exit(1)
+		}
+
+		if !found || latest.Version.LTE(currVersion) {
+			color.Green("Localizely CLI is up to date")
+			return
 		}
 
 		fmt.Printf("Current version: %s\n", currVersion)
 		fmt.Printf("Latest version:  %s\n\n", latest.Version)
 
-		if currVersion.GE(latest.Version) {
-			color.Green("Localizely CLI is up to date")
-		} else {
-			var confirm bool
-			scanConfirmUpdate(&confirm)
+		var confirm bool
+		err = scanConfirmUpdate(&confirm)
+		checkError(err)
 
-			if !confirm {
-				fmt.Println("Update canceled")
-				return
-			}
-
-			exe, err := os.Executable()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to locate executable path\nError: %v\n", err)
-				os.Exit(1)
-			}
-
-			err = selfupdate.UpdateTo(latest.AssetURL, exe)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to update\nError: %v\n", err)
-				os.Exit(1)
-			}
-
-			color.Green("Successfully updated to %s", latest.Version)
+		if !confirm {
+			fmt.Println("Update canceled")
+			return
 		}
+
+		exe, err := os.Executable()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to locate executable path\nError: %v\n", err)
+			os.Exit(1)
+		}
+
+		err = selfupdate.UpdateTo(latest.AssetURL, exe)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to update\nError: %v\n", err)
+			os.Exit(1)
+		}
+
+		color.Green("Successfully updated to %s", latest.Version)
 	},
 }
 

@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -79,50 +80,8 @@ var pushCmd = &cobra.Command{
 		err = validateFiles(localizationFiles, "push")
 		checkError(err)
 
-		filesMap := make(map[string]*os.File)
-		for _, v := range localizationFiles {
-			file, err := os.Open(filepath.Clean(v.File))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to open file '%s'\nError: %v\n", filepath.Clean(v.File), err)
-				os.Exit(1)
-			}
-
-			filesMap[v.LocaleCode] = file
-		}
-
-		cfg := localizely.NewConfiguration()
-		apiClient := localizely.NewAPIClient(cfg)
-		ctx := context.WithValue(context.Background(), localizely.ContextAPIKeys, map[string]localizely.APIKey{"API auth": {Key: apiToken}})
-
-		for _, localizationFile := range localizationFiles {
-			file := filesMap[localizationFile.LocaleCode]
-
-			req := apiClient.UploadAPIApi.ImportLocalizationFile(ctx, projectId)
-			req = req.LangCode(localizationFile.LocaleCode)
-			req = req.File(file)
-			req = req.Overwrite(overwrite)
-			req = req.Reviewed(reviewed)
-			if branch != "" {
-				req = req.Branch(branch)
-			}
-			if len(tagAdded) > 0 {
-				req = req.TagAdded(tagAdded)
-			}
-			if len(tagUpdated) > 0 {
-				req = req.TagUpdated(tagUpdated)
-			}
-			if len(tagRemoved) > 0 {
-				req = req.TagRemoved(tagRemoved)
-			}
-
-			resp, err := req.Execute()
-			if err != nil {
-				b, _ := io.ReadAll(resp.Body)
-				jsonErr := string(b)
-				fmt.Fprintf(os.Stderr, "Failed to push localization file '%s' to Localizely\nError: %v\n%s\n", file.Name(), err, jsonErr)
-				os.Exit(1)
-			}
-		}
+		err = pushLocalizationFiles(apiToken, projectId, branch, localizationFiles, overwrite, reviewed, tagAdded, tagUpdated, tagRemoved)
+		checkError(err)
 
 		color.Green("Successfully pushed data to Localizely")
 	},
@@ -140,4 +99,52 @@ func init() {
 	pushCmd.Flags().StringSlice("tag-added", []string{}, "List of tags to add to new translations from uploading file")
 	pushCmd.Flags().StringSlice("tag-updated", []string{}, "List of tags to add to updated translations from uploading file")
 	pushCmd.Flags().StringSlice("tag-removed", []string{}, "List of tags to add to removed translations from uploading file")
+}
+
+func pushLocalizationFiles(apiToken string, projectId string, branch string, files []LocalizationFile, overwrite bool, reviewed bool, tagAdded []string, tagUpdated []string, tagRemoved []string) error {
+	filesMap := make(map[string]*os.File)
+	for _, v := range files {
+		file, err := os.Open(filepath.Clean(v.File))
+		if err != nil {
+			return errors.New(fmt.Sprintf("Failed to open file '%s'\nError: %v\n", filepath.Clean(v.File), err))
+		}
+		defer file.Close()
+		filesMap[v.LocaleCode] = file
+	}
+
+	cfg := localizely.NewConfiguration()
+	apiClient := localizely.NewAPIClient(cfg)
+	ctx := context.WithValue(context.Background(), localizely.ContextAPIKeys, map[string]localizely.APIKey{"API auth": {Key: apiToken}})
+
+	for _, v := range files {
+		file := filesMap[v.LocaleCode]
+
+		req := apiClient.UploadAPIApi.ImportLocalizationFile(ctx, projectId)
+		req = req.LangCode(v.LocaleCode)
+		req = req.File(file)
+		req = req.Overwrite(overwrite)
+		req = req.Reviewed(reviewed)
+		if branch != "" {
+			req = req.Branch(branch)
+		}
+		if len(tagAdded) > 0 {
+			req = req.TagAdded(tagAdded)
+		}
+		if len(tagUpdated) > 0 {
+			req = req.TagUpdated(tagUpdated)
+		}
+		if len(tagRemoved) > 0 {
+			req = req.TagRemoved(tagRemoved)
+		}
+
+		resp, err := req.Execute()
+		if err != nil {
+			b, _ := io.ReadAll(resp.Body)
+			jsonErr := string(b)
+			return errors.New(fmt.Sprintf("Failed to push localization file '%s' to Localizely\nError: %v\n%s\n", file.Name(), err, jsonErr))
+		}
+		defer resp.Body.Close()
+	}
+
+	return nil
 }

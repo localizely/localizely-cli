@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -88,56 +89,8 @@ var pullCmd = &cobra.Command{
 		err = validateJavaPropertiesEncoding(javaPropertiesEncoding)
 		checkError(err)
 
-		cfg := localizely.NewConfiguration()
-		apiClient := localizely.NewAPIClient(cfg)
-		ctx := context.WithValue(context.Background(), localizely.ContextAPIKeys, map[string]localizely.APIKey{"API auth": {Key: apiToken}})
-
-		for _, localizationFile := range localizationFiles {
-			req := apiClient.DownloadAPIApi.GetLocalizationFile(ctx, projectId)
-			req = req.LangCodes(localizationFile.LocaleCode)
-			req = req.Type_(fileType)
-			if branch != "" {
-				req = req.Branch(branch)
-			}
-			if len(includeTags) > 0 {
-				req = req.IncludeTags(includeTags)
-			}
-			if len(excludeTags) > 0 {
-				req = req.ExcludeTags(excludeTags)
-			}
-			if exportEmptyAs != "" {
-				req = req.ExportEmptyAs(exportEmptyAs)
-			}
-			if javaPropertiesEncoding != "" {
-				req = req.JavaPropertiesEncoding(javaPropertiesEncoding)
-			}
-
-			resp, err := req.Execute()
-			if err != nil {
-				b, _ := io.ReadAll(resp.Body)
-				jsonErr := string(b)
-				fmt.Fprintf(os.Stderr, "Failed to pull data from Localizely\nError: %v\n%s\n", err, jsonErr)
-				os.Exit(1)
-			}
-
-			b, err := io.ReadAll(resp.Body)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to read response from the server\nError: %v\n", err)
-				os.Exit(1)
-			}
-
-			err = os.MkdirAll(filepath.Dir(localizationFile.File), 0777)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to create directory '%s'\nError: %v\n", filepath.Dir(localizationFile.File), err)
-				os.Exit(1)
-			}
-
-			err = os.WriteFile(filepath.Clean(localizationFile.File), b, 0666)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to save localization file '%s'\nError: %v\n", filepath.Clean(localizationFile.File), err)
-				os.Exit(1)
-			}
-		}
+		err = pullLocalizationFiles(apiToken, projectId, branch, fileType, javaPropertiesEncoding, localizationFiles, exportEmptyAs, includeTags, excludeTags)
+		checkError(err)
 
 		color.Green("Successfully pulled data from Localizely")
 	},
@@ -155,4 +108,56 @@ func init() {
 	pullCmd.Flags().String("export-empty-as", "", "Export empty translations as (default \"empty\")\n"+formatOptions(exportEmptyAsOpt, 1, "unordered"))
 	pullCmd.Flags().StringSlice("include-tags", []string{}, "List of tags to include in pull\nIf not set, all string keys will be considered for download")
 	pullCmd.Flags().StringSlice("exclude-tags", []string{}, "List of tags to exclude from pull\nIf not set, all string keys will be considered for download")
+}
+
+func pullLocalizationFiles(apiToken string, projectId string, branch string, fileType string, javaPropertiesEncoding string, files []LocalizationFile, exportEmptyAs string, includeTags []string, excludeTags []string) error {
+	cfg := localizely.NewConfiguration()
+	apiClient := localizely.NewAPIClient(cfg)
+	ctx := context.WithValue(context.Background(), localizely.ContextAPIKeys, map[string]localizely.APIKey{"API auth": {Key: apiToken}})
+
+	for _, v := range files {
+		req := apiClient.DownloadAPIApi.GetLocalizationFile(ctx, projectId)
+		req = req.LangCodes(v.LocaleCode)
+		req = req.Type_(fileType)
+		if branch != "" {
+			req = req.Branch(branch)
+		}
+		if len(includeTags) > 0 {
+			req = req.IncludeTags(includeTags)
+		}
+		if len(excludeTags) > 0 {
+			req = req.ExcludeTags(excludeTags)
+		}
+		if exportEmptyAs != "" {
+			req = req.ExportEmptyAs(exportEmptyAs)
+		}
+		if javaPropertiesEncoding != "" {
+			req = req.JavaPropertiesEncoding(javaPropertiesEncoding)
+		}
+
+		resp, err := req.Execute()
+		if err != nil {
+			b, _ := io.ReadAll(resp.Body)
+			jsonErr := string(b)
+			return errors.New(fmt.Sprintf("Failed to pull data from Localizely\nError: %v\n%s\n", err, jsonErr))
+		}
+		defer resp.Body.Close()
+
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Failed to read response from the server\nError: %v\n", err))
+		}
+
+		err = os.MkdirAll(filepath.Dir(v.File), 0777)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Failed to create directory '%s'\nError: %v\n", filepath.Dir(v.File), err))
+		}
+
+		err = os.WriteFile(filepath.Clean(v.File), b, 0666)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Failed to save localization file '%s'\nError: %v\n", filepath.Clean(v.File), err))
+		}
+	}
+
+	return nil
 }

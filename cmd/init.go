@@ -95,12 +95,11 @@ download: # Required.
     java_properties_encoding: utf_8 # Optional, default: latin_1. (Only for Java .properties files download) Character encoding. Available values : 'utf_8', 'latin_1'
 `
 
-func scanApiToken(apiToken *string) {
+func scanApiToken(apiToken *string) error {
 	for {
 		err := scan("\nEnter your API token (from https://app.localizely.com/account):", apiToken)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to read api token\nError: %v\n", err)
-			os.Exit(1)
+			return errors.New(fmt.Sprintf("Failed to read API token\nError: %v\n", err))
 		}
 
 		*apiToken = strings.TrimSpace(*apiToken)
@@ -113,14 +112,15 @@ func scanApiToken(apiToken *string) {
 		fmt.Fprintf(os.Stderr, "Invalid API token provided\n")
 		color.Unset()
 	}
+
+	return nil
 }
 
-func scanProjectId(projectId *string) {
+func scanProjectId(projectId *string) error {
 	for {
 		err := scan("\nEnter your project ID (from https://app.localizely.com/projects):", projectId)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to read project ID\nError: %v\n", err)
-			os.Exit(1)
+			return errors.New(fmt.Sprintf("Failed to read project ID\nError: %v\n", err))
 		}
 
 		*projectId = strings.TrimSpace(*projectId)
@@ -133,17 +133,18 @@ func scanProjectId(projectId *string) {
 		fmt.Fprintf(os.Stderr, "Invalid project ID provided\n")
 		color.Unset()
 	}
+
+	return nil
 }
 
-func scanFileType(fileType *string) {
+func scanFileType(fileType *string) error {
 	for {
 		var indexStr string
 		var err error
 
 		err = scan(fmt.Sprintf("\n%s\nSelect file type (%d-%d):", formatOptions(fileTypesOpt, 1, "ordered"), 1, len(fileTypesOpt)), &indexStr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to read file type\nError: %v\n", err)
-			os.Exit(1)
+			return errors.New(fmt.Sprintf("Failed to read file type\nError: %v\n", err))
 		}
 
 		index, err := strconv.Atoi(strings.TrimSpace(indexStr))
@@ -156,9 +157,11 @@ func scanFileType(fileType *string) {
 		fmt.Fprintf(os.Stderr, "Invalid file type provided\n")
 		color.Unset()
 	}
+
+	return nil
 }
 
-func scanFiles(localizationFiles *[]LocalizationFile, section string) {
+func scanFiles(localizationFiles *[]LocalizationFile, section string) error {
 	localeCodeRegexp := regexp.MustCompile("^[a-z]{2}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$")
 
 	var action string
@@ -178,8 +181,7 @@ func scanFiles(localizationFiles *[]LocalizationFile, section string) {
 		for {
 			err := scan(fmt.Sprintf("Enter locale code of the file you would like to %s (e.g. en, fr-FR, zh-Hans-CN):", action), &localeCode)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to read locale code\nError: %v\n", err)
-				os.Exit(1)
+				return errors.New(fmt.Sprintf("Failed to read locale code\nError: %v\n", err))
 			}
 
 			localeCode = strings.TrimSpace(localeCode)
@@ -195,8 +197,7 @@ func scanFiles(localizationFiles *[]LocalizationFile, section string) {
 		for {
 			err := scan(fmt.Sprintf("Enter the file path for the '%s' locale code (e.g. lang/en.json):", localeCode), &file)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to read file path\nError: %v\n", err)
-				os.Exit(1)
+				return errors.New(fmt.Sprintf("Failed to read file path\nError: %v\n", err))
 			}
 
 			file = strings.TrimSpace(file)
@@ -215,8 +216,7 @@ func scanFiles(localizationFiles *[]LocalizationFile, section string) {
 		for {
 			err := scan(fmt.Sprintf("Add another localization file for %s? (y/n)", section), &next)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to read answer\nError: %v\n", err)
-				os.Exit(1)
+				return errors.New(fmt.Sprintf("Failed to read answer\nError: %v\n", err))
 			}
 
 			next = strings.ToLower(strings.TrimSpace(next))
@@ -234,6 +234,8 @@ func scanFiles(localizationFiles *[]LocalizationFile, section string) {
 			break
 		}
 	}
+
+	return nil
 }
 
 func scan(message string, value *string) error {
@@ -251,6 +253,9 @@ func scan(message string, value *string) error {
 
 func createCredentialsYamlFile(apiToken string) error {
 	bytes, err := yaml.Marshal(CredentialsYaml{ApiToken: apiToken})
+	if err != nil {
+		return err
+	}
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -272,13 +277,16 @@ func createCredentialsYamlFile(apiToken string) error {
 }
 
 func createLocalizelyYamlFile(projectId string, fileType string, uploadFiles []LocalizationFile, downloadFiles []LocalizationFile) error {
-	tmpl := template.New("localizelyYaml")
-	tmpl.Parse(strings.TrimSpace(BaseLocalizelyYamlTemplate))
+	tmpl, err := template.New("localizelyYaml").Parse(strings.TrimSpace(BaseLocalizelyYamlTemplate))
+	if err != nil {
+		return err
+	}
 
 	file, err := os.Create(LocalizelyYamlFile)
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	return tmpl.Execute(file, BaseLocalizelyYaml{
 		ProjectId:     projectId,
@@ -288,59 +296,76 @@ func createLocalizelyYamlFile(projectId string, fileType string, uploadFiles []L
 	})
 }
 
-func checkIsConfigured() {
+func checkIsConfigured() error {
 	if _, err := os.Stat(LocalizelyYamlFile); !errors.Is(err, os.ErrNotExist) {
-		fmt.Fprintf(os.Stderr, "Localizely client is already configured\nTo see configuration, please open the '%s' file\nFor more configuration details, see https://localizely.com/configuration-file/\n", LocalizelyYamlFile)
-		os.Exit(1)
+		return errors.New(fmt.Sprintf("Localizely client is already configured\nTo see configuration, please open the '%s' file\nFor more configuration details, see https://localizely.com/configuration-file/\n", LocalizelyYamlFile))
 	}
+
+	return nil
 }
 
-func initInteractive() {
+func initInteractive() error {
 	fmt.Printf("\nRunning init command in interactive mode\n")
 	var err error
 
 	var apiToken string
-	scanApiToken(&apiToken)
+	err = scanApiToken(&apiToken)
+	if err != nil {
+		return err
+	}
 
 	var projectId string
-	scanProjectId(&projectId)
+	err = scanProjectId(&projectId)
+	if err != nil {
+		return err
+	}
 
 	var fileType string
-	scanFileType(&fileType)
+	err = scanFileType(&fileType)
+	if err != nil {
+		return err
+	}
 
 	var uploadFiles []LocalizationFile
-	scanFiles(&uploadFiles, "push")
+	err = scanFiles(&uploadFiles, "push")
+	if err != nil {
+		return err
+	}
 
 	var downloadFiles []LocalizationFile
-	scanFiles(&downloadFiles, "pull")
+	err = scanFiles(&downloadFiles, "pull")
+	if err != nil {
+		return err
+	}
 
 	err = createCredentialsYamlFile(apiToken)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to save api token\nError: %v\n", err)
-		os.Exit(1)
+		return errors.New(fmt.Sprintf("Failed to save api token\nError: %v\n", err))
 	}
 
 	color.Green("\nSuccessfully saved api token in the '%s' file", formatCredentialsYamlFilePath())
 
 	err = createLocalizelyYamlFile(projectId, fileType, uploadFiles, downloadFiles)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create '%s'\nError: %v\n", LocalizelyYamlFile, err)
-		os.Exit(1)
+		return errors.New(fmt.Sprintf("Failed to create '%s'\nError: %v\n", LocalizelyYamlFile, err))
 	}
 
 	color.Green("\nSuccessfully created '%s' file\nFor advanced configuration options, see https://localizely.com/configuration-file/", LocalizelyYamlFile)
+
+	return nil
 }
 
-func initTemplate() {
+func initTemplate() error {
 	data := []byte(strings.TrimSpace(LocalizelyYamlTemplate))
 
 	err := os.WriteFile(LocalizelyYamlFile, data, 0666)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to generate template file\nError: %v\n", err)
-		os.Exit(1)
+		return errors.New(fmt.Sprintf("Failed to generate template file\nError: %v\n", err))
 	}
 
 	color.Green("\nSuccessfully generated the '%s' template file\nFor more configuration details, see https://localizely.com/configuration-file/", LocalizelyYamlFile)
+
+	return nil
 }
 
 var initCmd = &cobra.Command{
@@ -354,14 +379,17 @@ var initCmd = &cobra.Command{
 		err = validateMode(mode)
 		checkError(err)
 
-		checkIsConfigured()
+		err = checkIsConfigured()
+		checkError(err)
 
 		fmt.Print(LocalizelyLogo)
 
 		if mode == "template" {
-			initTemplate()
+			err = initTemplate()
+			checkError(err)
 		} else {
-			initInteractive()
+			err = initInteractive()
+			checkError(err)
 		}
 	},
 }
