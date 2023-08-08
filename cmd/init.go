@@ -162,7 +162,7 @@ func scanFileType(fileType *string) error {
 }
 
 func scanFiles(localizationFiles *[]LocalizationFile, section string) error {
-	localeCodeRegexp := regexp.MustCompile("^[a-z]{2}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$")
+	localeCodeRegexp := regexp.MustCompile("^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|[0-9]{3}))?$")
 
 	var action string
 	if section == "pull" {
