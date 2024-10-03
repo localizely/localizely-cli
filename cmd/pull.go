@@ -116,7 +116,7 @@ func pullLocalizationFiles(apiToken string, projectId string, branch string, fil
 	ctx := context.WithValue(context.Background(), localizely.ContextAPIKeys, map[string]localizely.APIKey{"API auth": {Key: apiToken}})
 
 	for _, v := range files {
-		req := apiClient.DownloadAPIApi.GetLocalizationFile(ctx, projectId)
+		req := apiClient.DownloadAPIAPI.GetLocalizationFile(ctx, projectId)
 		req = req.LangCodes(v.LocaleCode)
 		req = req.Type_(fileType)
 		if branch != "" {

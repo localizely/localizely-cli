@@ -119,7 +119,7 @@ func pushLocalizationFiles(apiToken string, projectId string, branch string, fil
 	for _, v := range files {
 		file := filesMap[v.LocaleCode]
 
-		req := apiClient.UploadAPIApi.ImportLocalizationFile(ctx, projectId)
+		req := apiClient.UploadAPIAPI.ImportLocalizationFile(ctx, projectId)
 		req = req.LangCode(v.LocaleCode)
 		req = req.File(file)
 		req = req.Overwrite(overwrite)

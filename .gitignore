@@ -2,3 +2,5 @@
 
 localizely-cli.*
 dist/
+
+.DS_Store
