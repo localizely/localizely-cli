@@ -34,7 +34,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const Version = "1.0.4"
+const Version = "1.0.6"
 
 const LocalizelyDir = ".localizely"
 
