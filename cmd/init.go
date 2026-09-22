@@ -51,7 +51,7 @@ const BaseLocalizelyYamlTemplate = `
 # For more configuration details, see https://localizely.com/configuration-file/
 config_version: 1.0 # Required. Only 1.0 available
 project_id: {{ .ProjectId }} # Required. Your project ID from: https://app.localizely.com/projects
-file_type: {{ .FileType }} # Required, unless every file sets its own file_type. Available values : android_xml, ios_strings, ios_stringsdict, ios_xcstrings, java_properties, rails_yaml, angular_xlf, flutter_arb, dotnet_resx, po, pot, json, csv, xlsx
+file_type: {{ .FileType }} # Required, unless every file sets its own file_type. Available values : android_xml, ios_strings, ios_stringsdict, ios_xcstrings, java_properties, rails_yaml, angular_xlf, xliff, flutter_arb, dotnet_resx, po, pot, json, csv, xlsx
 upload: # Required.
   files: # Required. List of files for upload to Localizely. Usually, it is just one file used for the main locale{{ range .UploadFiles }}
     - file: {{ .File }} # Required. Path to the translation file{{ if .LocaleCode }}
@@ -65,7 +65,7 @@ download: # Required.
 const LocalizelyYamlTemplate = `
 config_version: 1.0 # Required. Only 1.0 available
 project_id: c776c33e-f428-4c91-87e1-a6a18c1554fe # Required. Your project ID from: https://app.localizely.com/projects
-file_type: flutter_arb # Required, unless every file sets its own file_type. Available values : android_xml, ios_strings, ios_stringsdict, ios_xcstrings, java_properties, rails_yaml, angular_xlf, flutter_arb, dotnet_resx, po, pot, json, csv, xlsx
+file_type: flutter_arb # Required, unless every file sets its own file_type. Available values : android_xml, ios_strings, ios_stringsdict, ios_xcstrings, java_properties, rails_yaml, angular_xlf, xliff, flutter_arb, dotnet_resx, po, pot, json, csv, xlsx
 branch: main # Optional. Your branch in Localizely project to sync files with.
 upload: # Required.
   files: # Required. List of files for upload to Localizely. Usually, it is just one file used for the main locale
@@ -85,7 +85,7 @@ upload: # Required.
       - updated
     # tag_in_file: # Optional. List of tags to add to every string key in the uploading file and to remove from the string keys of the branch that are not in it. One tag per platform routes string keys to the right download.
     #   - flutter
-    # placeholder_format: icu # Optional. Placeholder syntax of the file, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf). Available values : printf_java, printf_ios, printf_c, icu, dotnet, ruby, i18next, raw. Defaults to the project setting.
+    # placeholder_format: icu # Optional. Placeholder syntax of the file, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf, xliff). Available values : printf_java, printf_ios, printf_c, icu, dotnet, ruby, i18next, raw. Defaults to the project setting.
 download: # Required.
   files: # Required. List of files for download from Localizely.
     - file: lib/l10n/intl_en.arb # Required. Path to the translation file
@@ -102,7 +102,7 @@ download: # Required.
     include_tags: # Optional. List of tags to be downloaded. If not set, all string keys will be considered for download.
       - new
     java_properties_encoding: utf_8 # Optional, default: latin_1. (Only for Java .properties files download) Character encoding. Available values : 'utf_8', 'latin_1'
-    # placeholder_format: icu # Optional. Placeholder syntax of the files, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf). Available values : printf_java, printf_ios, printf_c, icu, dotnet, ruby, i18next, raw. Defaults to the project setting.
+    # placeholder_format: icu # Optional. Placeholder syntax of the files, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf, xliff). Available values : printf_java, printf_ios, printf_c, icu, dotnet, ruby, i18next, raw. Defaults to the project setting.
 `
 
 func scanApiToken(apiToken *string) error {

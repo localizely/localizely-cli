@@ -150,5 +150,5 @@ func init() {
 	pullCmd.Flags().String("export-empty-as", "", "Export empty translations as (default \"empty\")\n"+formatOptions(exportEmptyAsOpt, 1, "unordered"))
 	pullCmd.Flags().StringSlice("include-tags", []string{}, "List of tags to include in pull\nIf not set, all string keys will be considered for download")
 	pullCmd.Flags().StringSlice("exclude-tags", []string{}, "List of tags to exclude from pull\nIf not set, all string keys will be considered for download")
-	pullCmd.Flags().String("placeholder-format", "", "Placeholder syntax of the files, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf)\n"+formatOptions(placeholderFormatsOpt, 2, "unordered"))
+	pullCmd.Flags().String("placeholder-format", "", "Placeholder syntax of the files, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf, xliff)\n"+formatOptions(placeholderFormatsOpt, 2, "unordered"))
 }

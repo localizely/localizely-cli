@@ -186,5 +186,5 @@ func init() {
 	pushCmd.Flags().StringSlice("tag-updated", []string{}, "List of tags to add to updated translations from uploading file")
 	pushCmd.Flags().StringSlice("tag-removed", []string{}, "List of tags to add to removed translations from uploading file")
 	pushCmd.Flags().StringSlice("tag-in-file", []string{}, "List of tags that mirror the file: added to every string key in the uploading file and removed from string keys that are not in it")
-	pushCmd.Flags().String("placeholder-format", "", "Placeholder syntax of the file, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf)\n"+formatOptions(placeholderFormatsOpt, 2, "unordered"))
+	pushCmd.Flags().String("placeholder-format", "", "Placeholder syntax of the file, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf, xliff)\n"+formatOptions(placeholderFormatsOpt, 2, "unordered"))
 }

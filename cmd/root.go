@@ -85,6 +85,7 @@ var fileTypesOpt = []string{
 	"java_properties",
 	"rails_yaml",
 	"angular_xlf",
+	"xliff",
 	"flutter_arb",
 	"dotnet_resx",
 	"po",
