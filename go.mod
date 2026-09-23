@@ -7,7 +7,6 @@ toolchain go1.24.11
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/fatih/color v1.18.0
-	github.com/localizely/localizely-client-go v1.0.2
 	github.com/rhysd/go-github-selfupdate v1.2.3
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0

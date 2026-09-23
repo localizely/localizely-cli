@@ -22,24 +22,20 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"context"
-	"errors"
 	"fmt"
-	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
 
 	"github.com/fatih/color"
-	"github.com/localizely/localizely-client-go"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var pullCmd = &cobra.Command{
-	Use:     "pull",
-	Short:   "Pull localization files from Localizely",
-	Example: "  localizely-cli pull \\\n    --api-token 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \\\n    --project-id 01234567-abcd-abcd-abcd-0123456789ab \\\n    --file-type json \\\n    --files \"file[0]=lang/en.json\",\"locale_code[0]=en\",\"file[1]=lang/de_DE.json\",\"locale_code[1]=de-DE\" \\\n    --export-empty-as empty \\\n    --include-tags new,updated \\\n    --exclude-tags removed",
+	Use:   "pull",
+	Short: "Pull localization files from Localizely",
 	PreRun: func(cmd *cobra.Command, args []string) {
 		// Bind flags only if the command is executed (fixes issue with global viper and the same flag names in multiple cobra commands)
 		// More info: https://github.com/spf13/viper/issues/233#issuecomment-386791444
@@ -52,6 +48,7 @@ var pullCmd = &cobra.Command{
 		viper.BindPFlag("download.params.export_empty_as", cmd.Flags().Lookup("export-empty-as"))
 		viper.BindPFlag("download.params.include_tags", cmd.Flags().Lookup("include-tags"))
 		viper.BindPFlag("download.params.exclude_tags", cmd.Flags().Lookup("exclude-tags"))
+		viper.BindPFlag("download.params.placeholder_format", cmd.Flags().Lookup("placeholder-format"))
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		apiToken := viper.GetString("api_token")
@@ -63,6 +60,7 @@ var pullCmd = &cobra.Command{
 		exportEmptyAs := viper.GetString("download.params.export_empty_as")
 		includeTags := viper.GetStringSlice("download.params.include_tags")
 		excludeTags := viper.GetStringSlice("download.params.exclude_tags")
+		placeholderFormat := viper.GetString("download.params.placeholder_format")
 
 		localizationFiles := []LocalizationFile{}
 		if reflect.TypeOf(files).String() == "[]interface {}" {
@@ -80,7 +78,7 @@ var pullCmd = &cobra.Command{
 		err = validateFileType(fileType)
 		checkError(err)
 
-		err = validateFiles(localizationFiles, "pull")
+		err = validateFiles(localizationFiles, fileType, "pull")
 		checkError(err)
 
 		err = validateExportEmptyAs(exportEmptyAs)
@@ -89,8 +87,52 @@ var pullCmd = &cobra.Command{
 		err = validateJavaPropertiesEncoding(javaPropertiesEncoding)
 		checkError(err)
 
-		err = pullLocalizationFiles(apiToken, projectId, branch, fileType, javaPropertiesEncoding, localizationFiles, exportEmptyAs, includeTags, excludeTags)
+		err = validatePlaceholderFormat(placeholderFormat)
 		checkError(err)
+
+		api := newApiClient(apiToken)
+
+		for _, localizationFile := range localizationFiles {
+			params := url.Values{}
+			params.Set("type", resolveFileType(localizationFile, fileType))
+			// A file with all locales, such as an Apple String Catalog, is pulled with every locale of the project
+			if !isMultiLocaleFile(localizationFile, fileType) {
+				params.Set("lang_codes", localizationFile.LocaleCode)
+			}
+			if branch != "" {
+				params.Set("branch", branch)
+			}
+			// File-level tags override the section parameters for this file
+			addTags(params, "include_tags", resolveList(localizationFile.IncludeTags, includeTags))
+			addTags(params, "exclude_tags", resolveList(localizationFile.ExcludeTags, excludeTags))
+			if exportEmptyAs != "" {
+				params.Set("export_empty_as", exportEmptyAs)
+			}
+			if javaPropertiesEncoding != "" {
+				params.Set("java_properties_encoding", javaPropertiesEncoding)
+			}
+			if placeholderFormat != "" {
+				params.Set("placeholder_format", placeholderFormat)
+			}
+
+			content, err := api.downloadFile(projectId, params)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to pull data from Localizely for '%s'\nError: %v\n", localizationFile.File, err)
+				os.Exit(1)
+			}
+
+			err = os.MkdirAll(filepath.Dir(localizationFile.File), 0666)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to create directory '%s'\nError: %v\n", filepath.Dir(localizationFile.File), err)
+				os.Exit(1)
+			}
+
+			err = os.WriteFile(filepath.Clean(localizationFile.File), content, 0666)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to save localization file '%s'\nError: %v\n", filepath.Clean(localizationFile.File), err)
+				os.Exit(1)
+			}
+		}
 
 		color.Green("Successfully pulled data from Localizely")
 	},
@@ -102,62 +144,11 @@ func init() {
 	pullCmd.Flags().String("api-token", "", "API token\nYour API token from https://app.localizely.com/account")
 	pullCmd.Flags().String("project-id", "", "Project ID\nYour project ID from https://app.localizely.com/projects")
 	pullCmd.Flags().String("branch", "", "Branch name\nBranch in Localizely project to sync files with")
-	pullCmd.Flags().StringToString("files", map[string]string{}, "List of localization files to pull from Localizely\nExample:\n\t--files \"file[0]=lang/en_US.json\",\"locale_code[0]=en-US\"")
-	pullCmd.Flags().String("file-type", "", "File type\n"+formatOptions(fileTypesOpt, 2, "unordered"))
+	pullCmd.Flags().StringToString("files", map[string]string{}, "List of localization files to pull from Localizely\nExample:\n\t--files \"file[0]=lang/en_US.json\",\"locale_code[0]=en-US\"\nA file may set its own file type, and a file that holds all locales takes no locale_code[i]:\n\t--files \"file[0]=App/Localizable.xcstrings\",\"file_type[0]=ios_xcstrings\"")
+	pullCmd.Flags().String("file-type", "", "File type of the files that do not set their own\n"+formatOptions(fileTypesOpt, 2, "unordered"))
 	pullCmd.Flags().String("java-properties-encoding", "", "Character encoding for java_properties file type (default \"latin_1\")\n"+formatOptions(javaPropertiesEncodingOpt, 1, "unordered"))
 	pullCmd.Flags().String("export-empty-as", "", "Export empty translations as (default \"empty\")\n"+formatOptions(exportEmptyAsOpt, 1, "unordered"))
 	pullCmd.Flags().StringSlice("include-tags", []string{}, "List of tags to include in pull\nIf not set, all string keys will be considered for download")
 	pullCmd.Flags().StringSlice("exclude-tags", []string{}, "List of tags to exclude from pull\nIf not set, all string keys will be considered for download")
-}
-
-func pullLocalizationFiles(apiToken string, projectId string, branch string, fileType string, javaPropertiesEncoding string, files []LocalizationFile, exportEmptyAs string, includeTags []string, excludeTags []string) error {
-	cfg := localizely.NewConfiguration()
-	apiClient := localizely.NewAPIClient(cfg)
-	ctx := context.WithValue(context.Background(), localizely.ContextAPIKeys, map[string]localizely.APIKey{"API auth": {Key: apiToken}})
-
-	for _, v := range files {
-		req := apiClient.DownloadAPIAPI.GetLocalizationFile(ctx, projectId)
-		req = req.LangCodes(v.LocaleCode)
-		req = req.Type_(fileType)
-		if branch != "" {
-			req = req.Branch(branch)
-		}
-		if len(includeTags) > 0 {
-			req = req.IncludeTags(includeTags)
-		}
-		if len(excludeTags) > 0 {
-			req = req.ExcludeTags(excludeTags)
-		}
-		if exportEmptyAs != "" {
-			req = req.ExportEmptyAs(exportEmptyAs)
-		}
-		if javaPropertiesEncoding != "" {
-			req = req.JavaPropertiesEncoding(javaPropertiesEncoding)
-		}
-
-		resp, err := req.Execute()
-		if err != nil {
-			b, _ := io.ReadAll(resp.Body)
-			jsonErr := string(b)
-			return errors.New(fmt.Sprintf("Failed to pull data from Localizely\nError: %v\n%s\n", err, jsonErr))
-		}
-		defer resp.Body.Close()
-
-		b, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return errors.New(fmt.Sprintf("Failed to read response from the server\nError: %v\n", err))
-		}
-
-		err = os.MkdirAll(filepath.Dir(v.File), 0777)
-		if err != nil {
-			return errors.New(fmt.Sprintf("Failed to create directory '%s'\nError: %v\n", filepath.Dir(v.File), err))
-		}
-
-		err = os.WriteFile(filepath.Clean(v.File), b, 0666)
-		if err != nil {
-			return errors.New(fmt.Sprintf("Failed to save localization file '%s'\nError: %v\n", filepath.Clean(v.File), err))
-		}
-	}
-
-	return nil
+	pullCmd.Flags().String("placeholder-format", "", "Placeholder syntax of the files, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf, xliff)\n"+formatOptions(placeholderFormatsOpt, 2, "unordered"))
 }
