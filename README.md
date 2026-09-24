@@ -145,8 +145,95 @@ localizely-cli update
 
 If anything feels off, or you would like to propose some functionality, feel free to do it through [GitHub Issue Tracker](https://github.com/localizely/localizely-cli/issues).
 
+## Development
+
+The following sections are intended for maintainers of the Localizely CLI.
+
+### API client
+
+All communication with the Localizely API goes through the [localizely-client-go](https://github.com/localizely/localizely-client-go) package, a Go client generated with [OpenAPI Generator](https://openapi-generator.tech/) from the [Localizely OpenAPI specification](https://api.localizely.com/api-docs). Do not add hand-written API calls to this project. When the API changes, regenerate the client, release a new version of it, and update the dependency here.
+
+The client repository is generated as a whole, including its README, so the regeneration process is documented here. The only things you need are the OpenAPI Generator CLI and the `generate.sh` script from that repository.
+
+Install OpenAPI Generator (see the [installation guide](https://openapi-generator.tech/docs/installation) for other options)
+
+```bash
+brew install openapi-generator
+```
+
+Clone the client repository
+
+```bash
+git clone https://github.com/localizely/localizely-client-go.git
+cd localizely-client-go
+```
+
+Run the script with the new package version as the only argument. It downloads the latest specification from the Localizely API, regenerates all files, and runs `go mod tidy`.
+
+```bash
+./generate.sh 1.2.0
+```
+
+Review the changes, commit them, and push them together with a tag for the new version
+
+```bash
+git tag v1.2.0
+git push origin main v1.2.0
+```
+
+Update the dependency in this project
+
+```bash
+go get github.com/localizely/localizely-client-go@v1.2.0
+go mod tidy
+```
+
+_**Note:** The script calls the `openapi-generator` executable, which is what the Homebrew package provides. Installing the generator through npm gives you `openapi-generator-cli` instead, so make sure `openapi-generator` is available on your path._
+
+### Releasing a new version
+
+Releases are built and published with [GoReleaser](https://goreleaser.com/), using the configuration in the `.goreleaser.yaml` file. A release creates a [GitHub release](https://github.com/localizely/localizely-cli/releases) with binaries for Linux, macOS, and Windows, and builds and pushes the [localizely/localizely-cli](https://hub.docker.com/r/localizely/localizely-cli) Docker image, tagged with the version and `latest`, to Docker Hub.
+
+Before you start, make sure you have:
+
+- [GoReleaser](https://goreleaser.com/install/) v2 installed
+- Docker running and logged in to Docker Hub (`docker login`) with an account that can push to the `localizely/localizely-cli` repository
+- A GitHub personal access token that can create releases in this repository (the `repo` scope for a classic token, or the `contents: write` permission for a fine-grained token)
+
+Bump the `Version` constant in `cmd/root.go` to the new version and commit the change. The `update` command compares this constant with the latest GitHub release, so it must match the tag you are about to create.
+
+Create a tag for the new version, prefixed with `v`, and push the commit together with the tag
+
+```bash
+git tag v1.0.11
+git push origin main v1.0.11
+```
+
+Export your GitHub token
+
+```bash
+export GITHUB_TOKEN=<your-token>
+```
+
+Optionally, do a dry run that builds everything locally without publishing anything
+
+```bash
+goreleaser release --snapshot --clean
+```
+
+Publish the release
+
+```bash
+goreleaser release --clean
+```
+
+When the command finishes, verify the [GitHub release](https://github.com/localizely/localizely-cli/releases) and the [Docker Hub tags](https://hub.docker.com/r/localizely/localizely-cli/tags), and confirm that `localizely-cli update` detects the new version.
+
+_**Note:** GoReleaser refuses to release from a working tree with uncommitted changes, or from a commit that is not tagged._
+
 ## Useful links
 
 - [Localizely CLI Docs](https://localizely.com/cli/)
 - [Localizely API Docs](https://api.localizely.com/swagger-ui/index.html)
+- [Localizely Go API client](https://github.com/localizely/localizely-client-go)
 - [Localizely Configuration File](https://localizely.com/configuration-file/)
