@@ -102,7 +102,17 @@ localizely-cli pull \
   --files "file[0]=lang/en.json","locale_code[0]=en","file[1]=lang/de_DE.json","locale_code[1]=de-DE" \
   --export-empty-as empty \
   --include-tags new,updated \
-  --exclude-tags removed
+  --exclude-tags removed \
+  --placeholder-format i18next
+```
+
+A file that holds all locales, such as an Apple String Catalog, is listed without a locale code and pulled with every language of the project:
+
+```bash
+localizely-cli pull \
+  --api-token 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+  --project-id 01234567-abcd-abcd-abcd-0123456789ab \
+  --files "file[0]=App/Localizable.xcstrings","file_type[0]=ios_xcstrings"
 ```
 
 ### Push
@@ -128,8 +138,18 @@ localizely-cli push \
   --reviewed=false \
   --tag-added new,new-feat-x \
   --tag-updated updated,updated-feat-x \
-  --tag-removed removed
+  --tag-removed removed \
+  --tag-in-file web \
+  --placeholder-format i18next
 ```
+
+`--tag-in-file` adds the tags to every string key in the file and removes them from the string keys that are not in it, which routes the keys of each platform to the right download. `--placeholder-format` names the placeholder syntax of a generic file (JSON, properties, CSV, Excel, XLIFF) in a project with [universal placeholders](https://localizely.com/universal-placeholders/).
+
+An Apple String Catalog (`.xcstrings`) is pushed once per language it contains. Languages the project does not have are skipped, and unless `--reviewed` is set, the review state of each translation is taken from the file.
+
+### Several platforms in one repository
+
+In the configuration file, every item of `upload.files` and `download.files` may set its own `file_type` and its own tags (`tag_added`, `tag_updated`, `tag_removed` and `tag_in_file` for uploads, `include_tags` and `exclude_tags` for downloads), which override the section parameters for that file. See the [configuration file](https://localizely.com/configuration-file/) docs for an Android and iOS example.
 
 ### Update
 
