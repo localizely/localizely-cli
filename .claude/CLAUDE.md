@@ -13,7 +13,7 @@ CLI commands:
 
 - Build: `go build`
 - Check: `go vet ./...` and `gofmt -l .`
-- Tests: none yet
+- Tests: `go test ./...`
 
 ## API client
 

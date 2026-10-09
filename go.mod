@@ -7,7 +7,7 @@ toolchain go1.24.11
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/fatih/color v1.18.0
-	github.com/localizely/localizely-client-go v1.0.2
+	github.com/localizely/localizely-client-go v1.2.0
 	github.com/rhysd/go-github-selfupdate v1.2.3
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
@@ -32,7 +32,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tcnksm/go-gitconfig v0.1.2 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
