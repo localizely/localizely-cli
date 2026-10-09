@@ -51,41 +51,50 @@ const BaseLocalizelyYamlTemplate = `
 # For more configuration details, see https://localizely.com/configuration-file/
 config_version: 1.0 # Required. Only 1.0 available
 project_id: {{ .ProjectId }} # Required. Your project ID from: https://app.localizely.com/projects
-file_type: {{ .FileType }} # Required. Available values : android_xml, ios_strings, ios_stringsdict, java_properties, rails_yaml, angular_xlf, flutter_arb, dotnet_resx, po, pot, json, csv, xlsx
+file_type: {{ .FileType }} # Required, unless every file sets its own file_type. Available values : android_xml, ios_strings, ios_stringsdict, ios_xcstrings, java_properties, rails_yaml, angular_xlf, xliff, flutter_arb, dotnet_resx, po, pot, json, csv, xlsx
 upload: # Required.
   files: # Required. List of files for upload to Localizely. Usually, it is just one file used for the main locale{{ range .UploadFiles }}
-    - file: {{ .File }} # Required. Path to the translation file
-      locale_code: {{ .LocaleCode }} # Required. Locale code for the file. Examples: en, de-DE, zh-Hans-CN{{ end }}
+    - file: {{ .File }} # Required. Path to the translation file{{ if .LocaleCode }}
+      locale_code: {{ .LocaleCode }} # Required, except for ios_xcstrings where it must be omitted. Locale code for the file. Examples: en, de-DE, zh-Hans-CN{{ end }}{{ end }}
 download: # Required.
   files: # Required. List of files for download from Localizely.{{ range .DownloadFiles }}
-    - file: {{ .File }} # Required. Path to the translation file
-      locale_code: {{ .LocaleCode }} # Required. Locale code for the file. Examples: en, de-DE, zh-Hans-CN{{ end }}
+    - file: {{ .File }} # Required. Path to the translation file{{ if .LocaleCode }}
+      locale_code: {{ .LocaleCode }} # Required, except for ios_xcstrings where it must be omitted. Locale code for the file. Examples: en, de-DE, zh-Hans-CN{{ end }}{{ end }}
 `
 
 const LocalizelyYamlTemplate = `
 config_version: 1.0 # Required. Only 1.0 available
 project_id: c776c33e-f428-4c91-87e1-a6a18c1554fe # Required. Your project ID from: https://app.localizely.com/projects
-file_type: flutter_arb # Required. Available values : android_xml, ios_strings, ios_stringsdict, java_properties, rails_yaml, angular_xlf, flutter_arb, dotnet_resx, po, pot, json, csv, xlsx
+file_type: flutter_arb # Required, unless every file sets its own file_type. Available values : android_xml, ios_strings, ios_stringsdict, ios_xcstrings, java_properties, rails_yaml, angular_xlf, xliff, flutter_arb, dotnet_resx, po, pot, json, csv, xlsx
 branch: main # Optional. Your branch in Localizely project to sync files with.
 upload: # Required.
   files: # Required. List of files for upload to Localizely. Usually, it is just one file used for the main locale
     - file: lib/l10n/intl_en.arb # Required. Path to the translation file
-      locale_code: en # Required. Locale code for the file. Examples: en, de-DE, zh-Hans-CN
+      locale_code: en # Required, except for ios_xcstrings where it must be omitted. Locale code for the file. Examples: en, de-DE, zh-Hans-CN
+      # file_type: flutter_arb # Optional. Overrides the top-level file_type for this file, so one repository can hold the files of several platforms.
+      # tag_in_file: # Optional. Overrides upload.params.tag_in_file for this file. The same holds for tag_added, tag_updated and tag_removed.
+      #   - flutter
   params: # Optional.
     overwrite: true # Optional, default: false. If the translation in a given language should be overwritten with modified translation from uploading file.
-    reviewed: false # Optional, default: false. If uploading translations, that are added, should be marked as Reviewed. For uploading translations that are only modified it will have effect only if overwrite is set to true.
+    reviewed: false # Optional, default: false. If uploading translations, that are added, should be marked as Reviewed. For uploading translations that are only modified it will have effect only if overwrite is set to true. For ios_xcstrings, leave it unset to take the review state from the file.
     tag_added: # Optional. List of tags to add to new translations from uploading file.
       - added
     tag_removed: # Optional. List of tags to add to removed translations from uploading file.
       - removed
     tag_updated: # Optional. List of tags to add to updated translations from uploading file.
       - updated
+    # tag_in_file: # Optional. List of tags to add to every string key in the uploading file and to remove from the string keys of the branch that are not in it. One tag per platform routes string keys to the right download.
+    #   - flutter
+    # placeholder_format: icu # Optional. Placeholder syntax of the file, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf, xliff). Available values : printf_java, printf_ios, printf_c, icu, dotnet, ruby, i18next, raw. Defaults to the project setting.
 download: # Required.
   files: # Required. List of files for download from Localizely.
     - file: lib/l10n/intl_en.arb # Required. Path to the translation file
-      locale_code: en # Required. Locale code for the file. Examples: en, de-DE, zh-Hans-CN
+      locale_code: en # Required, except for ios_xcstrings where it must be omitted. Locale code for the file. Examples: en, de-DE, zh-Hans-CN
+      # file_type: flutter_arb # Optional. Overrides the top-level file_type for this file.
+      # include_tags: # Optional. Overrides download.params.include_tags for this file. The same holds for exclude_tags.
+      #   - flutter
     - file: lib/l10n/intl_de.arb # Required. Path to the translation file
-      locale_code: de # Required. Locale code for the file. Examples: en, de-DE, zh-Hans-CN
+      locale_code: de # Required, except for ios_xcstrings where it must be omitted. Locale code for the file. Examples: en, de-DE, zh-Hans-CN
   params:
     export_empty_as: empty # Optional, default: empty. How you would like empty translations to be exported. Allowed values are 'empty' to keep empty, 'main' to replace with the main language value, or 'skip' to omit.
     exclude_tags: # Optional. List of tags to be excluded from the download. If not set, all string keys will be considered for download.
@@ -93,6 +102,7 @@ download: # Required.
     include_tags: # Optional. List of tags to be downloaded. If not set, all string keys will be considered for download.
       - new
     java_properties_encoding: utf_8 # Optional, default: latin_1. (Only for Java .properties files download) Character encoding. Available values : 'utf_8', 'latin_1'
+    # placeholder_format: icu # Optional. Placeholder syntax of the files, only for projects with universal placeholders and generic file types (json, java_properties, csv, xlsx, angular_xlf, xliff). Available values : printf_java, printf_ios, printf_c, icu, dotnet, ruby, i18next, raw. Defaults to the project setting.
 `
 
 func scanApiToken(apiToken *string) error {
@@ -161,7 +171,7 @@ func scanFileType(fileType *string) error {
 	return nil
 }
 
-func scanFiles(localizationFiles *[]LocalizationFile, section string) error {
+func scanFiles(localizationFiles *[]LocalizationFile, section string, multiLocale bool) error {
 	localeCodeRegexp := regexp.MustCompile("^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|[0-9]{3}))?$")
 
 	var action string
@@ -178,7 +188,8 @@ func scanFiles(localizationFiles *[]LocalizationFile, section string) error {
 
 		fmt.Println()
 
-		for {
+		// A file that holds every locale, such as an Apple String Catalog, has no locale code
+		for !multiLocale {
 			err := scan(fmt.Sprintf("Enter locale code of the file you would like to %s (e.g. en, fr-FR, zh-Hans-CN):", action), &localeCode)
 			if err != nil {
 				return errors.New(fmt.Sprintf("Failed to read locale code\nError: %v\n", err))
@@ -195,7 +206,11 @@ func scanFiles(localizationFiles *[]LocalizationFile, section string) error {
 		}
 
 		for {
-			err := scan(fmt.Sprintf("Enter the file path for the '%s' locale code (e.g. lang/en.json):", localeCode), &file)
+			prompt := fmt.Sprintf("Enter the file path for the '%s' locale code (e.g. lang/en.json):", localeCode)
+			if multiLocale {
+				prompt = fmt.Sprintf("Enter the path of the file with all locales you would like to %s (e.g. App/Localizable.xcstrings):", action)
+			}
+			err := scan(prompt, &file)
 			if err != nil {
 				return errors.New(fmt.Sprintf("Failed to read file path\nError: %v\n", err))
 			}
@@ -326,14 +341,16 @@ func initInteractive() error {
 		return err
 	}
 
+	multiLocale := multiLocaleFileTypes[fileType]
+
 	var uploadFiles []LocalizationFile
-	err = scanFiles(&uploadFiles, "push")
+	err = scanFiles(&uploadFiles, "push", multiLocale)
 	if err != nil {
 		return err
 	}
 
 	var downloadFiles []LocalizationFile
-	err = scanFiles(&downloadFiles, "pull")
+	err = scanFiles(&downloadFiles, "pull", multiLocale)
 	if err != nil {
 		return err
 	}
